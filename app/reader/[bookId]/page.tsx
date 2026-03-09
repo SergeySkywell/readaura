@@ -10,6 +10,7 @@ export default function ReaderPage() {
   const bookId = params.bookId as string;
 
   const viewerRef = useRef<HTMLDivElement>(null);
+  const renditionRef = useRef<any>(null);
 
   useEffect(() => {
     async function loadBook() {
@@ -26,25 +27,48 @@ export default function ReaderPage() {
         spread: "none",
       });
 
-      await book.ready;
+      renditionRef.current = rendition;
 
-      const navigation = await book.loaded.navigation;
-
-      // берём первый пункт оглавления
-      const firstChapter = navigation.toc[0];
-
-      if (firstChapter?.href) {
-        rendition.display(firstChapter.href);
-      } else {
-        rendition.display();
-      }
+      rendition.display();
     }
 
     loadBook();
   }, [bookId]);
 
+  // перелистывание клавиатурой
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (!renditionRef.current) return;
+
+      if (e.key === "ArrowRight") {
+        renditionRef.current.next();
+      }
+
+      if (e.key === "ArrowLeft") {
+        renditionRef.current.prev();
+      }
+    }
+
+    window.addEventListener("keydown", handleKey);
+
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
+
+  function handleClick(e: React.MouseEvent) {
+    if (!renditionRef.current) return;
+
+    const screenWidth = window.innerWidth;
+
+    if (e.clientX > screenWidth / 2) {
+      renditionRef.current.next();
+    } else {
+      renditionRef.current.prev();
+    }
+  }
+
   return (
     <main
+      onClick={handleClick}
       style={{
         height: "100vh",
         width: "100%",
