@@ -8,6 +8,9 @@ import {
   saveProgress,
   getProgress,
 } from "@/entities/reading-progress/progress.service";
+import { useState } from "react";
+import { translateText } from "@/features/translate/translate.service";
+import TranslatePopup from "@/features/translate/TranslatePopup";
 
 export default function ReaderPage() {
   const params = useParams();
@@ -15,6 +18,13 @@ export default function ReaderPage() {
 
   const viewerRef = useRef<HTMLDivElement>(null);
   const renditionRef = useRef<any>(null);
+
+  const [popup, setPopup] = useState<{
+    text: string;
+    translation: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     async function loadBook() {
@@ -45,6 +55,27 @@ export default function ReaderPage() {
       rendition.on("relocated", (location: any) => {
         const cfi = location.start.cfi;
         saveProgress(bookId, cfi);
+      });
+
+      rendition.on("selected", async (cfiRange: string, contents: any) => {
+        const text = contents.window.getSelection().toString().trim();
+
+        if (!text || text.length > 120) return;
+
+        const selection = contents.window.getSelection();
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+
+        const translation = await translateText(text);
+
+        setPopup({
+          text,
+          translation,
+          x: rect.left + rect.width / 2,
+          y: rect.top - 10,
+        });
+
+        rendition.annotations.remove(cfiRange, "highlight");
       });
     }
 
@@ -93,6 +124,15 @@ export default function ReaderPage() {
           padding: "40px",
         }}
       />
+
+      {popup && (
+        <TranslatePopup
+          text={popup.text}
+          translation={popup.translation}
+          x={popup.x}
+          y={popup.y}
+        />
+      )}
     </main>
   );
 }
